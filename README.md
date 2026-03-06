@@ -13,6 +13,16 @@ A fully browser-based SQL editor — no backend, no installation required.
 - Keyboard shortcut: `Ctrl+Enter` to run queries
 - Resizable editor and results panes
 
+  ✨ Added AI Assistant panel powered by Claude (Anthropic)
+🔑 API key input with show/hide toggle and live validation
+🧠 Context-aware AI — reads your schema and current query automatically
+↗️ "Insert into Editor" button to paste AI-generated SQL directly
+💬 Quick prompt buttons for common tasks
+
+v1.0
+
+🚀 Initial release with SQL editor, sample datasets, CSV upload, schema viewer
+
 ## 🛠 Tech Stack
 - Vanilla HTML, CSS, JavaScript
 - [SQL.js](https://sql.js.org/) — SQLite compiled to WebAssembly
