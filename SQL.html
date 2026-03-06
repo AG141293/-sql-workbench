@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Workbench</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b0e14;
+    --surface: #111520;
+    --surface2: #161c2d;
+    --border: #1e2740;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --keyword: #818cf8;
+    --string: #34d399;
+    --number: #fb923c;
+    --comment: #475569;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 12px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .logo span { color: var(--accent2); }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  select:hover { border-color: var(--accent); }
+
+  .btn {
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid #ef444433;
+  }
+  .btn-danger:hover { background: #ef444415; }
+
+  /* STATUS BAR */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .status-dot.loading { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* MAIN LAYOUT */
+  main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  .editor-pane {
+    flex: 0 0 auto;
+    height: 46%;
+    min-height: 140px;
+    max-height: 70%;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 2px solid var(--border);
+    position: relative;
+  }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .pane-header-actions { display: flex; gap: 6px; align-items: center; }
+
+  .line-numbers {
+    position: absolute;
+    left: 0; top: 36px; bottom: 0;
+    width: 44px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    padding: 14px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-right: 8px;
+    gap: 0;
+    user-select: none;
+  }
+
+  .line-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--comment);
+    min-height: 22px;
+  }
+
+  .editor-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #sql-editor {
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 14px 16px 14px 60px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    tab-size: 2;
+    caret-color: var(--accent2);
+    spellcheck: false;
+  }
+
+  #sql-editor::selection { background: #3b82f633; }
+
+  #sql-editor::placeholder { color: var(--comment); }
+
+  /* RESULTS PANE */
+  .results-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 80px;
+  }
+
+  .results-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 9px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+  }
+
+  .tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .tab-content.active { display: flex; }
+
+  /* TABLE */
+  .table-container {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+  }
+
+  .result-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .result-table th {
+    background: var(--surface2);
+    color: var(--accent2);
+    padding: 10px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .result-table td {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .result-table tr:hover td { background: #ffffff05; }
+
+  .result-table td.null-val { color: var(--comment); font-style: italic; }
+  .result-table td.num-val { color: var(--number); }
+  .result-table td.str-val { color: var(--string); }
+
+  /* MESSAGES */
+  .message-area {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+
+  .msg.success { background: #10b98115; border: 1px solid #10b98130; color: var(--green); }
+  .msg.error { background: #ef444415; border: 1px solid #ef444430; color: #fca5a5; }
+  .msg.info { background: #3b82f615; border: 1px solid #3b82f630; color: #93c5fd; }
+
+  .msg-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* SCHEMA */
+  .schema-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .schema-table {
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .schema-table-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--accent2);
+    transition: background 0.15s;
+  }
+
+  .schema-table-header:hover { background: #ffffff08; }
+
+  .schema-cols {
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+
+  .schema-cols.open { display: block; }
+
+  .schema-col {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 14px 7px 30px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .schema-col:last-child { border-bottom: none; }
+
+  .col-type {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--keyword);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  /* DRAG RESIZE */
+  .resize-handle {
+    height: 4px;
+    background: var(--border);
+    cursor: row-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .resize-handle:hover { background: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    gap: 12px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .empty-icon { font-size: 40px; opacity: 0.4; }
+  .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--text); opacity: 0.4; }
+  .empty-state p { font-size: 13px; line-height: 1.6; max-width: 340px; }
+
+  /* ROW COUNT */
+  .row-count {
+    padding: 6px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  /* TOOLTIP */
+  .kbd {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* LOADER */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #run-btn.running .spinner { display: block; }
+  #run-btn.running .run-icon { display: none; }
+
+  /* Upload overlay */
+  .upload-overlay {
+    position: fixed; inset: 0;
+    background: #0b0e14cc;
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .upload-overlay.open { display: flex; }
+  .upload-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    width: 480px;
+    max-width: 90vw;
+  }
+  .upload-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .upload-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: #3b82f608; }
+  .upload-zone-icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-zone p { font-size: 13px; color: var(--muted); }
+  .upload-zone strong { color: var(--accent); }
+  .or-divider { text-align: center; color: var(--muted); font-size: 12px; margin: 16px 0; position: relative; }
+  .or-divider::before, .or-divider::after {
+    content: ''; position: absolute; top: 50%; width: 44%; height: 1px; background: var(--border);
+  }
+  .or-divider::before { left: 0; } .or-divider::after { right: 0; }
+  .sample-datasets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sample-btn {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .sample-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .sample-btn .sample-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+  .sample-btn .sample-rows { font-size: 10px; color: var(--muted); font-weight: 400; }
+  .upload-footer { display: flex; justify-content: flex-end; margin-top: 20px; }
+  #file-input { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    SQL <span>Workbench</span>
+  </div>
+  <div class="header-actions">
+    <span style="font-size:11px;color:var(--muted)" class="kbd">Ctrl+Enter to run</span>
+    <button class="btn btn-ghost" onclick="openUpload()">📂 Load Dataset</button>
+    <button class="btn btn-ghost" onclick="clearEditor()">🗑 Clear</button>
+    <button class="btn btn-primary" id="run-btn" onclick="runQuery()">
+      <span class="run-icon">▶ Run Query</span>
+      <div class="spinner"></div>
+    </button>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-text">Ready</span>
+  <span style="margin-left:auto" id="exec-time"></span>
+</div>
+
+<main>
+  <div class="editor-pane" id="editor-pane">
+    <div class="pane-header">
+      <span>📝 Query Editor</span>
+      <div class="pane-header-actions">
+        <span id="cursor-pos" style="font-family:'JetBrains Mono',monospace;font-size:11px">Ln 1, Col 1</span>
+      </div>
+    </div>
+    <div class="editor-wrapper" style="position:relative;display:flex;flex:1;overflow:hidden;">
+      <div class="line-numbers" id="line-numbers"></div>
+      <textarea id="sql-editor" spellcheck="false"
+        placeholder="-- Write your SQL query here&#10;-- Example: SELECT * FROM employees LIMIT 10;&#10;&#10;SELECT * FROM employees LIMIT 10;"
+      ></textarea>
+    </div>
+  </div>
+
+  <div class="resize-handle" id="resize-handle"></div>
+
+  <div class="results-pane">
+    <div class="results-tabs">
+      <div class="tab active" onclick="switchTab('results')">Results <span class="tab-badge" id="row-badge" style="display:none">0</span></div>
+      <div class="tab" onclick="switchTab('messages')">Messages</div>
+      <div class="tab" onclick="switchTab('schema')">Schema</div>
+    </div>
+
+    <div class="tab-content active" id="tab-results">
+      <div class="empty-state" id="empty-results">
+        <div class="empty-icon">📊</div>
+        <h3>No Results Yet</h3>
+        <p>Write a query above and press <strong>Run Query</strong> or <kbd class="kbd">Ctrl+Enter</kbd> to execute.</p>
+      </div>
+      <div class="table-container" id="table-container" style="display:none"></div>
+      <div class="row-count" id="row-count" style="display:none"></div>
+    </div>
+
+    <div class="tab-content" id="tab-messages">
+      <div class="message-area" id="message-area">
+        <div class="msg info"><span class="msg-icon">ℹ️</span><span>SQL Workbench initialized. Load a dataset or start querying.</span></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-schema">
+      <div class="schema-panel" id="schema-panel">
+        <div class="empty-state">
+          <div class="empty-icon">🗂</div>
+          <h3>No Tables Loaded</h3>
+          <p>Load a dataset to see the schema here.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Upload Overlay -->
+<div class="upload-overlay" id="upload-overlay">
+  <div class="upload-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="upload-title">Load Dataset</div>
+      <button class="btn btn-ghost" onclick="closeUpload()" style="padding:4px 10px">✕</button>
+    </div>
+    <div class="upload-subtitle">Upload a CSV file or choose a built-in sample dataset</div>
+
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-zone-icon">📁</div>
+      <p><strong>Click to upload</strong> or drag & drop</p>
+      <p style="margin-top:4px;font-size:11px">CSV files supported</p>
+    </div>
+    <input type="file" id="file-input" accept=".csv" onchange="handleFileUpload(event)">
+
+    <div class="or-divider">or pick a sample</div>
+
+    <div class="sample-datasets">
+      <button class="sample-btn" onclick="loadSample('employees')">
+        <span class="sample-icon">👥</span>
+        Employees
+        <div class="sample-rows">50 rows · HR data</div>
+      </button>
+      <button class="sample-btn" onclick="loadSample('sales')">
+        <span class="sample-icon">💰</span>
+        Sales Orders
+        <div class="sample-rows">100 rows · E-commerce</div>
+      </button>
+      <button class="sample-btn" onclick="loadSample('products')">
+        <span class="sample-icon">📦</span>
+        Products
+        <div class="sample-rows">40 rows · Inventory</div>
+      </button>
+      <button class="sample-btn" onclick="loadSample('movies')">
+        <span class="sample-icon">🎬</span>
+        Movies
+        <div class="sample-rows">60 rows · Entertainment</div>
+      </button>
+    </div>
+
+    <div class="upload-footer">
+      <button class="btn btn-ghost" onclick="closeUpload()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SQL.js init ──
+let db = null;
+let SQL = null;
+let loadedTables = [];
+
+initSQL();
+
+async function initSQL() {
+  try {
+    SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+    db = new SQL.Database();
+    setStatus('ready', 'Database ready');
+    addMessage('success', '✅ SQL engine initialized successfully.');
+  } catch(e) {
+    setStatus('error', 'Init failed');
+    addMessage('error', '❌ Failed to initialize SQL engine: ' + e.message);
+  }
+}
+
+// ── Editor ──
+const editor = document.getElementById('sql-editor');
+const lineNums = document.getElementById('line-numbers');
+
+function updateLineNumbers() {
+  const lines = editor.value.split('\n').length;
+  lineNums.innerHTML = Array.from({length: lines}, (_,i) => `<div class="line-num">${i+1}</div>`).join('');
+}
+
+function updateCursor() {
+  const v = editor.value;
+  const pos = editor.selectionStart;
+  const lines = v.substring(0, pos).split('\n');
+  document.getElementById('cursor-pos').textContent = `Ln ${lines.length}, Col ${lines[lines.length-1].length+1}`;
+}
+
+editor.addEventListener('input', updateLineNumbers);
+editor.addEventListener('keyup', updateCursor);
+editor.addEventListener('click', updateCursor);
+editor.addEventListener('scroll', () => { lineNums.scrollTop = editor.scrollTop; });
+
+editor.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runQuery(); }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = editor.selectionStart, en = editor.selectionEnd;
+    editor.value = editor.value.substring(0, s) + '  ' + editor.value.substring(en);
+    editor.selectionStart = editor.selectionEnd = s + 2;
+    updateLineNumbers();
+  }
+});
+
+updateLineNumbers();
+
+function clearEditor() {
+  editor.value = '';
+  updateLineNumbers();
+  updateCursor();
+}
+
+// ── Run Query ──
+function runQuery() {
+  if (!db) return addMessage('error', '❌ Database not ready.');
+  const query = editor.value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('run-btn');
+  btn.classList.add('running');
+  setStatus('loading', 'Executing...');
+
+  setTimeout(() => {
+    const t0 = performance.now();
+    try {
+      const results = db.exec(query);
+      const elapsed = (performance.now() - t0).toFixed(1);
+      btn.classList.remove('running');
+
+      if (results.length === 0) {
+        // DML
+        setStatus('ready', 'Query OK');
+        document.getElementById('exec-time').textContent = `${elapsed}ms`;
+        addMessage('success', `✅ Query executed successfully in ${elapsed}ms.`);
+        showEmpty();
+        switchTab('messages');
+        refreshSchema();
+      } else {
+        const res = results[results.length - 1];
+        renderTable(res.columns, res.values);
+        const rows = res.values.length;
+        setStatus('ready', `${rows} row${rows!==1?'s':''} returned`);
+        document.getElementById('exec-time').textContent = `${elapsed}ms`;
+        addMessage('success', `✅ Query returned ${rows} row${rows!==1?'s':''} in ${elapsed}ms.`);
+        switchTab('results');
+      }
+    } catch(e) {
+      btn.classList.remove('running');
+      setStatus('error', 'Query error');
+      document.getElementById('exec-time').textContent = '';
+      addMessage('error', '❌ ' + e.message);
+      showEmpty();
+      switchTab('messages');
+    }
+  }, 10);
+}
+
+// ── Render Table ──
+function renderTable(cols, rows) {
+  const container = document.getElementById('table-container');
+  document.getElementById('empty-results').style.display = 'none';
+  container.style.display = 'block';
+
+  const badge = document.getElementById('row-badge');
+  badge.style.display = 'inline';
+  badge.textContent = rows.length;
+
+  const rc = document.getElementById('row-count');
+  rc.style.display = 'block';
+  rc.textContent = `${rows.length} row${rows.length!==1?'s':''} · ${cols.length} column${cols.length!==1?'s':''}`;
+
+  let html = '<table class="result-table"><thead><tr>';
+  cols.forEach(c => html += `<th>${escHtml(c)}</th>`);
+  html += '</tr></thead><tbody>';
+
+  rows.forEach(row => {
+    html += '<tr>';
+    row.forEach(cell => {
+      if (cell === null || cell === undefined) {
+        html += `<td class="null-val">NULL</td>`;
+      } else if (typeof cell === 'number') {
+        html += `<td class="num-val">${escHtml(String(cell))}</td>`;
+      } else {
+        html += `<td class="str-val">${escHtml(String(cell))}</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function showEmpty() {
+  document.getElementById('empty-results').style.display = 'flex';
+  document.getElementById('table-container').style.display = 'none';
+  document.getElementById('row-count').style.display = 'none';
+  document.getElementById('row-badge').style.display = 'none';
+}
+
+// ── Tabs ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['results','messages','schema'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ── Messages ──
+function addMessage(type, text) {
+  const area = document.getElementById('message-area');
+  const icons = { success:'✅', error:'❌', info:'ℹ️' };
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+  div.innerHTML = `<span class="msg-icon">${icons[type]||'•'}</span><span>${text}</span>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+// ── Status ──
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (state==='error'?' error':state==='loading'?' loading':'');
+  document.getElementById('status-text').textContent = text;
+}
+
+// ── Schema ──
+function refreshSchema() {
+  if (!db) return;
+  try {
+    const res = db.exec("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+    const panel = document.getElementById('schema-panel');
+    if (!res.length || !res[0].values.length) {
+      panel.innerHTML = `<div class="empty-state"><div class="empty-icon">🗂</div><h3>No Tables Loaded</h3><p>Load a dataset to see the schema here.</p></div>`;
+      return;
+    }
+    const tables = res[0].values.map(r=>r[0]);
+    loadedTables = tables;
+    panel.innerHTML = '';
+    tables.forEach(tbl => {
+      const info = db.exec(`PRAGMA table_info(${tbl})`);
+      const cols = info[0] ? info[0].values : [];
+      const div = document.createElement('div');
+      div.className = 'schema-table';
+      div.innerHTML = `
+        <div class="schema-table-header" onclick="this.nextElementSibling.classList.toggle('open')">
+          📋 ${escHtml(tbl)} <span style="color:var(--muted);font-size:11px;font-weight:400;margin-left:auto">${cols.length} cols</span>
+        </div>
+        <div class="schema-cols open">
+          ${cols.map(c=>`<div class="schema-col"><span>${escHtml(c[1])}</span><span class="col-type">${escHtml(c[2]||'TEXT')}</span></div>`).join('')}
+        </div>`;
+      panel.appendChild(div);
+    });
+  } catch(e) {}
+}
+
+// ── Upload Overlay ──
+function openUpload() { document.getElementById('upload-overlay').classList.add('open'); }
+function closeUpload() { document.getElementById('upload-overlay').classList.remove('open'); }
+
+// Drag & drop
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) processCSV(f); });
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (file) processCSV(file);
+  e.target.value = '';
+}
+
+function processCSV(file) {
+  const name = file.name.replace(/\.csv$/i,'').replace(/[^a-zA-Z0-9_]/g,'_').toLowerCase() || 'data';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const rows = parseCSV(ev.target.result);
+      if (rows.length < 2) throw new Error('CSV must have header and at least 1 row.');
+      createTable(name, rows[0], rows.slice(1));
+      closeUpload();
+      addSampleQuery(name, rows[0]);
+    } catch(e) {
+      addMessage('error', '❌ CSV parse error: '+e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.map(line => {
+    const row = [];
+    let cur = '', inQ = false;
+    for (let i=0;i<line.length;i++) {
+      const c = line[i];
+      if (c==='"') inQ=!inQ;
+      else if (c===',' && !inQ) { row.push(cur.trim()); cur=''; }
+      else cur+=c;
+    }
+    row.push(cur.trim());
+    return row;
+  });
+}
+
+function createTable(name, headers, rows) {
+  if (!db) return;
+  try {
+    db.run(`DROP TABLE IF EXISTS ${name}`);
+    const cols = headers.map(h => `"${h.replace(/"/g,'""')}" TEXT`).join(',');
+    db.run(`CREATE TABLE ${name} (${cols})`);
+    const placeholders = headers.map(()=>'?').join(',');
+    const stmt = db.prepare(`INSERT INTO ${name} VALUES (${placeholders})`);
+    rows.forEach(row => { if(row.some(c=>c!=='')) stmt.run(row.map(c=>c||null)); });
+    stmt.free();
+    refreshSchema();
+    addMessage('success', `✅ Table "${name}" created with ${rows.length} rows and ${headers.length} columns.`);
+    setStatus('ready', `Table "${name}" loaded`);
+  } catch(e) {
+    addMessage('error', '❌ Error creating table: '+e.message);
+  }
+}
+
+function addSampleQuery(name, cols) {
+  editor.value = `SELECT * FROM ${name} LIMIT 20;`;
+  updateLineNumbers();
+}
+
+// ── Sample Datasets ──
+const SAMPLES = {
+  employees: {
+    cols: ['id','name','department','salary','hire_date','manager','city'],
+    gen: (i) => {
+      const depts=['Engineering','Sales','HR','Marketing','Finance','Operations'];
+      const names=['Alice Johnson','Bob Smith','Carol White','David Brown','Eva Martinez','Frank Lee','Grace Kim','Henry Davis','Iris Chen','Jack Wilson','Karen Taylor','Leo Garcia','Mia Anderson','Noah Thomas','Olivia Jackson','Paul Harris','Quinn Martin','Rachel Thompson','Sam Lewis','Tara Moore'];
+      const cities=['New York','San Francisco','Chicago','Austin','Seattle','Boston','Denver','Miami'];
+      const mgrs=['Alice Johnson','Bob Smith','Carol White','David Brown'];
+      return [i+1, names[i%names.length], depts[i%depts.length], 40000+Math.floor(Math.random()*80000), `2019-0${(i%9)+1}-${String((i%28)+1).padStart(2,'0')}`, mgrs[i%4], cities[i%cities.length]];
+    }, n:50
+  },
+  sales: {
+    cols: ['order_id','customer','product','quantity','unit_price','total','order_date','status','region'],
+    gen: (i) => {
+      const customers=['Acme Corp','Beta LLC','Gamma Inc','Delta Co','Epsilon Ltd','Zeta GmbH','Eta SA','Theta BV'];
+      const products=['Laptop Pro','Wireless Mouse','USB Hub','Monitor 4K','Keyboard Mech','Webcam HD','Headset Pro','SSD 1TB','RAM 16GB','Dock Station'];
+      const statuses=['Completed','Processing','Shipped','Cancelled','Pending'];
+      const regions=['North','South','East','West','Central'];
+      const qty=Math.floor(Math.random()*10)+1;
+      const price=(Math.random()*500+20).toFixed(2);
+      return [1000+i+1, customers[i%customers.length], products[i%products.length], qty, price, (qty*price).toFixed(2), `2024-${String((i%12)+1).padStart(2,'0')}-${String((i%28)+1).padStart(2,'0')}`, statuses[i%statuses.length], regions[i%regions.length]];
+    }, n:100
+  },
+  products: {
+    cols: ['product_id','name','category','price','stock','supplier','sku','rating'],
+    gen: (i) => {
+      const cats=['Electronics','Clothing','Food','Books','Sports','Home','Toys','Beauty'];
+      const sups=['SupplierA','SupplierB','SupplierC','SupplierD','SupplierE'];
+      const names=['Widget Alpha','Gadget Beta','Item Gamma','Product Delta','Thing Epsilon','Object Zeta','Device Eta','Tool Theta','Unit Iota','Piece Kappa'];
+      return [i+1, names[i%names.length]+` ${i+1}`, cats[i%cats.length], (Math.random()*200+5).toFixed(2), Math.floor(Math.random()*500), sups[i%sups.length], `SKU-${String(i+1).padStart(4,'0')}`, (3+Math.random()*2).toFixed(1)];
+    }, n:40
+  },
+  movies: {
+    cols: ['id','title','genre','year','director','rating','duration_min','language'],
+    gen: (i) => {
+      const genres=['Action','Comedy','Drama','Sci-Fi','Horror','Romance','Thriller','Animation'];
+      const directors=['Christopher Nolan','Steven Spielberg','Martin Scorsese','Ridley Scott','James Cameron','Denis Villeneuve','Wes Anderson','David Fincher'];
+      const langs=['English','Spanish','French','German','Japanese','Korean','Hindi'];
+      const titles=['The Dark Knight','Inception','Interstellar','Arrival','Blade Runner','Dune','The Matrix','Gladiator','Parasite','1917','Joker','Mad Max','Dunkirk','Gravity','The Revenant','Ford v Ferrari','Whiplash','La La Land','The Lighthouse','Midsommar'];
+      return [i+1, titles[i%titles.length]+` ${Math.floor(i/titles.length)||''}`.trim(), genres[i%genres.length], 1990+Math.floor(Math.random()*35), directors[i%directors.length], (6+Math.random()*4).toFixed(1), 90+Math.floor(Math.random()*90), langs[i%langs.length]];
+    }, n:60
+  }
+};
+
+function loadSample(name) {
+  const s = SAMPLES[name];
+  if (!s) return;
+  const rows = Array.from({length:s.n}, (_,i)=>s.gen(i));
+  createTable(name, s.cols, rows);
+  editor.value = `-- ${name.charAt(0).toUpperCase()+name.slice(1)} dataset loaded!\nSELECT * FROM ${name} LIMIT 20;`;
+  updateLineNumbers();
+  closeUpload();
+}
+
+// ── Resize handle ──
+const handle = document.getElementById('resize-handle');
+const edPane = document.getElementById('editor-pane');
+let resizing = false;
+handle.addEventListener('mousedown', () => resizing = true);
+document.addEventListener('mousemove', e => {
+  if (!resizing) return;
+  const rect = document.querySelector('main').getBoundingClientRect();
+  const newH = e.clientY - rect.top;
+  const pct = Math.min(Math.max(newH / rect.height * 100, 20), 75);
+  edPane.style.height = pct + '%';
+});
+document.addEventListener('mouseup', () => resizing = false);
+
+// ── Helpers ──
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Close overlay on outside click
+document.getElementById('upload-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeUpload();
+});
+
+// Auto-load employees on start (after db ready)
+setTimeout(() => {
+  if (db) {
+    loadSample('employees');
+    runQuery();
+  }
+}, 1200);
+</script>
+</body>
+</html>
